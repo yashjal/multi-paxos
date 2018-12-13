@@ -1,3 +1,3 @@
 # multi-paxos
 
-Final project for Distributes systems course
+Final project for Distributed Systems course
