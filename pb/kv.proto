@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package pb;
+
+// Represents a single key, used for gets.
+message Key {
+    string key = 1;
+    int64 cid = 2;
+}
+
+// Represents a single value, can be used for put etc.
+message Value {
+    string value = 1;
+}
+
+// Represent a key-value pair that is used to return results.
+message KeyValue {
+    string key = 1;
+    string value = 2;
+    int64 cid = 3;
+}
+
+// Represent a void message indicating success
+message Success {
+}
+
+// Represents an error.
+message Error {
+    string msg = 1;
+}
+
+// Represents an argument for CAS
+message CASArg {
+    KeyValue kv = 1;
+    Value value = 2;
+}
+
+// Represents an empty message
+message Empty {}
+
+message EmptyCid {
+	int64 cid = 1;
+}
+
+// Represents a case where we need the client to connect
+// to another server.
+message Redirect {
+    string server = 1;
+}
+
+// Represents an operation result.
+message Result {
+    int64 cid = 1;
+    oneof result {
+        Redirect redirect = 2;
+        KeyValue kv = 3;
+        Success s = 4;
+    }
+}
+
+// KvStore service
+service KvStore {
+    // Get the value associated with a key.
+    rpc Get (Key) returns (Result) {}
+    rpc Set (KeyValue) returns (Result) {}
+    rpc Clear(EmptyCid) returns (Result) {}
+    rpc CAS(CASArg) returns (Result) {}
+}
+
+// Internal representations for operations.
+enum Op {
+    GET = 0;
+    SET = 1;
+    CLEAR = 2;
+    CAS = 3;
+}
+
+// A type for arguments across all operations
+message Command {
+    int64 cid = 1;
+    Op operation = 2;
+    oneof arg {
+        Key get = 3;
+        KeyValue set = 4;
+        EmptyCid clear = 5;
+        CASArg cas = 6;
+    }
+}
+
+// equivalent to log entry
+message Pvalue {
+	string ballotID = 1;
+	int64 ballotNum = 2;
+	int64 slotNum = 3;
+	Command cmd = 4;
+}
+
+// input to prepare
+message P1a {
+	string ballotID = 1;
+	int64 ballotNum = 2;
+}
+
+// output from prepare
+message P1b {
+	string ballotID = 1;
+	int64 ballotNum = 2;
+	repeated Pvalue accepted = 3;
+}
+
+// input to accept
+message P2a {
+	string leaderID = 1;
+	Pvalue pv = 2;
+}
+
+// output from accept
+message P2b {
+	string ballotID = 1;
+	int64 ballotNum = 2;
+	int64 slotNum = 3;
+	Command cmd = 4;
+}
+
+// input to propose/decision
+message SlotCmd {
+	int64 slotNum = 1;
+	Command cmd = 2;
+	string id = 3;
+}
+
+// multi-paxos service
+service Paxos {
+	rpc Prepare(P1a) returns (P1b) {}
+	rpc Accept(P2a) returns (P2b) {}
+	rpc Propose(SlotCmd) returns (Empty) {}
+	rpc Decision(SlotCmd) returns (Empty) {}
+}
